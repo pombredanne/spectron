@@ -1,3 +1,48 @@
+# 3.2.3
+
+  * Add `chromeDriverLogPath` option to `Application`. See README for usage
+    details.
+
+# 3.2.2
+
+  * Add `debuggerAddress` option to `Application`. See README for usage details.
+
+# 3.2.0
+
+  * Supports Electron `1.2.x` releases.
+
+# 3.1.3
+
+  * Improve detection of Node integration inside application and gracefully
+    handle disabled Node integration.
+
+# 3.1.2
+
+  * Add support for the async `WebContents.savePage` API. See the README
+    for usage details.
+
+# 3.1.1
+
+  * Add support for the async `BrowserWindow.capturePage` API. See the README
+    for usage details.
+
+# 3.1.0
+
+  * Supports Electron `1.1.x` releases.
+
+# 3.0.1
+
+  * Added a new `requireName` option to `Application` for if your app is
+    re-assigning the `require` function to a different name on `window`.
+  * Fixed an issue where applications setting `nodeIntegration` to `false` could
+    not be tested.
+
+# 3.0.0
+
+  * Spectron now runs with `electron-chromedriver` 1.0 and is targeted at
+    apps using Electron 1.0 or later.
+  * No API changes.
+
 # 2.37.0
 
   * Added a `restart()` method to `Application`

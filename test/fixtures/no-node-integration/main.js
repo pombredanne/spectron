@@ -5,11 +5,13 @@ var mainWindow = null
 
 app.on('ready', function () {
   mainWindow = new BrowserWindow({
-    center: true,
-    width: 800,
-    height: 400,
-    minHeight: 100,
-    minWidth: 100
+    x: 25,
+    y: 35,
+    width: 200,
+    height: 100,
+    webPreferences: {
+      nodeIntegration: false
+    }
   })
   mainWindow.loadURL('file://' + __dirname + '/index.html')
   mainWindow.on('closed', function () { mainWindow = null })

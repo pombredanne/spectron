@@ -1,7 +1,7 @@
-require('electron').hideInternalModules()
 var app = require('electron').app
 var BrowserWindow = require('electron').BrowserWindow
 var fs = require('fs')
+var ipcMain = require('electron').ipcMain
 var path = require('path')
 
 var mainWindow = null
@@ -12,6 +12,7 @@ app.on('ready', function () {
   console.error('main error')
 
   global.mainProcessGlobal = 'foo'
+  global.ipcEventCount = 0
 
   mainWindow = new BrowserWindow({
     x: 25,
@@ -27,4 +28,8 @@ app.on('will-quit', function () {
   if (fs.existsSync(process.env.SPECTRON_TEMP_DIR)) {
     fs.writeFileSync(path.join(process.env.SPECTRON_TEMP_DIR, 'quit.txt'), '')
   }
+})
+
+ipcMain.on('ipc-event', function (event, count) {
+  global.ipcEventCount += count
 })

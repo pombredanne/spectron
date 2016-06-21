@@ -179,4 +179,59 @@ describe('application loading', function () {
       return app.electron.remote.getGlobal('mainProcessGlobal').should.eventually.equal('foo')
     })
   })
+
+  describe('browserWindow.capturePage', function () {
+    it('returns a Buffer screenshot of the given rectangle', function () {
+      return app.browserWindow.capturePage({
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10
+      }).then(function (buffer) {
+        expect(buffer).to.be.an.instanceof(Buffer)
+        expect(buffer.length).to.be.above(0)
+      })
+    })
+
+    it('returns a Buffer screenshot of the entire page when no rectangle is specified', function () {
+      return app.browserWindow.capturePage().then(function (buffer) {
+        expect(buffer).to.be.an.instanceof(Buffer)
+        expect(buffer.length).to.be.above(0)
+      })
+    })
+  })
+
+  describe('webContents.savePage', function () {
+    it('saves the page to the specified path', function () {
+      var filePath = path.join(tempPath, 'page.html')
+      return app.webContents.savePage(filePath, 'HTMLComplete').then(function () {
+        var html = fs.readFileSync(filePath, 'utf8')
+        expect(html).to.contain('<title>Test</title>')
+        expect(html).to.contain('Hello')
+      })
+    })
+
+    it('throws an error when the specified path is invalid', function () {
+      return app.webContents.savePage(tempPath, 'MHTML').should.be.rejectedWith(Error)
+    })
+  })
+
+  describe('electron.ipcRenderer.send', function () {
+    it('sends the message to the main process', function () {
+      return app.electron.remote.getGlobal('ipcEventCount').should.eventually.equal(0)
+        .electron.ipcRenderer.send('ipc-event', 123)
+        .electron.remote.getGlobal('ipcEventCount').should.eventually.equal(123)
+        .electron.ipcRenderer.send('ipc-event', 456)
+        .electron.remote.getGlobal('ipcEventCount').should.eventually.equal(579)
+    })
+  })
+
+  describe('webContents.sendInputEvent', function () {
+    it('triggers a keypress DOM event', function () {
+      return app.webContents.sendInputEvent({type: 'keyDown', keyCode: 'A'})
+        .getText('.keypress-count').should.eventually.equal('A')
+        .webContents.sendInputEvent({type: 'keyDown', keyCode: 'B'})
+        .getText('.keypress-count').should.eventually.equal('B')
+    })
+  })
 })

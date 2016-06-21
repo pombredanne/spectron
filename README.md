@@ -1,4 +1,4 @@
-# spectron
+# <img src="https://cloud.githubusercontent.com/assets/378023/15063284/cf544f2c-1383-11e6-9336-e13bd64b1694.png" width="60px" align="center" alt="Spectron icon"> Spectron
 
 [![Linux Build Status](https://travis-ci.org/electron/spectron.svg?branch=master)](https://travis-ci.org/electron/spectron)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/iv8xd919q6b44pap/branch/master?svg=true)](https://ci.appveyor.com/project/kevinsawicki/spectron/branch/master)
@@ -15,12 +15,12 @@ Easily test your [Electron](http://electron.atom.io) apps using
 [WebdriverIO](http://webdriver.io).
 
 This minor version of this library tracks the minor version of the Electron
-versions released. So if you are using Electron `0.37.x` you would want to use
-a `spectron` dependency of `~2.37` in your `package.json` file.
+versions released. So if you are using Electron `1.0.x` you would want to use
+a `spectron` dependency of `~3.0.0` in your `package.json` file.
 
 Learn more from [this presentation](https://speakerdeck.com/kevinsawicki/testing-your-electron-apps-with-chromedriver).
 
-:rotating_light: Upgrading from `1.x` to `2.x`? Read the [changelog](https://github.com/electron/spectron/blob/master/CHANGELOG.md).
+:rotating_light: Upgrading from `1.x` to `2.x`/`3.x`? Read the [changelog](https://github.com/electron/spectron/blob/master/CHANGELOG.md).
 
 ## Using
 
@@ -88,11 +88,39 @@ Create a new application with the following options:
   to ChromeDriver to be made. Defaults to `30000` milliseconds.
 * `quitTimeout` - Number in milliseconds to wait for application quitting.
   Defaults to `1000` milliseconds.
+* `requireName` - Custom property name to use when requiring modules. Defaults
+  to `require`. This should only be used if your application deletes the main
+  `window.require` function and assigns it to another property name on `window`.
 * `startTimeout` - Number in milliseconds to wait for ChromeDriver to start.
   Defaults to `5000` milliseconds.
 * `waitTimeout` - Number in milliseconds to wait for calls like
   `waitUntilTextExists` and `waitUntilWindowLoaded` to complete.
   Defaults to `5000` milliseconds.
+* `debuggerAddress` - String address of a Chrome debugger server to connect to.
+* `chromeDriverLogPath` - String path to file to store ChromeDriver logs in.
+  Setting this option enables `--verbose` logging when starting ChromeDriver.
+
+### Node Integration
+
+The Electron helpers provided by Spectron require accessing the core Electron
+APIs in the renderer processes of your application. So if your Electron
+application has `nodeIntegration` set to `false` then you'll need to expose a
+`require` window global to Spectron so it can access the core Electron APIs.
+
+You can do this by adding a [`preload`][preload] script that does the following:
+
+```js
+if (process.env.NODE_ENV === 'test') {
+  window.electronRequire = require
+}
+```
+
+Then create the Spectron `Application` with the `requireName` option set to
+`'electronRequire'` and then runs your tests via `NODE_ENV=test npm test`.
+
+**Note:** This is only required if you tests are accessing any Electron APIs.
+You don't need to do this if you are only accessing the helpers on the `client`
+property which do not require Node integration.
 
 ### Properties
 
@@ -107,6 +135,14 @@ The full `client` API provided by WebdriverIO can be found
 Several additional commands are provided specific to Electron.
 
 All the commands return a `Promise`.
+
+So if you wanted to get the text of an element you would do:
+
+```js
+app.client.getText('#error-alert').then(function (errorText) {
+  console.log('The #error-alert text content is ' + errorText)
+})
+```
 
 #### electron
 
@@ -145,6 +181,18 @@ app.browserWindow.isVisible().then(function (visible) {
 It is named `browserWindow` instead of `window` so that it doesn't collide
 with the WebDriver command of that name.
 
+##### capturePage
+
+The async `capturePage` API is supported but instead of taking a callback it
+returns a `Promise` that resolves to a `Buffer` that is the image data of
+screenshot.
+
+```js
+app.browserWindow.capturePage().then(function (imageBuffer) {
+  fs.writeFile('page.png', imageBuffer)
+})
+```
+
 #### webContents
 
 The `webContents` property is an alias for `require('electron').remote.getCurrentWebContents()`.
@@ -159,6 +207,21 @@ would do:
 app.webContents.isLoading().then(function (visible) {
   console.log('window is loading? ' + visible)
 })
+```
+
+##### savePage
+
+The async `savePage` API is supported but instead of taking a callback it
+returns a `Promise` that will raise any errors and resolve to `undefined` when
+complete.
+
+```js
+app.webContents.savePage('/Users/kevin/page.html', 'HTMLComplete')
+  .then(function () {
+    console.log('page saved')
+  }).catch(function (error) {
+    console.error('saving page failed', error.message)
+  })
 ```
 
 #### mainProcess
@@ -380,12 +443,10 @@ describe('application launch', function () {
 
 ### With AVA
 
-Spectron works with [AVA](https://github.com/sindresorhus/ava) which allows you
-to write your tests in ES2015 without extra support.
+Spectron works with [AVA](https://github.com/avajs/ava), which allows you
+to write your tests in ES2015+ without doing any extra work.
 
 ```js
-'use strict';
-
 import test from 'ava';
 import {Application} from 'spectron';
 
@@ -414,23 +475,45 @@ test(t => {
     }).browserWindow.isFocused().then(focused => {
       t.true(focused);
     }).browserWindow.getBounds().then(bounds => {
-      t.ok(bounds.width > 0);
-      t.ok(bounds.height > 0);
+      t.true(bounds.width > 0);
+      t.true(bounds.height > 0);
     });
 });
 ```
 
-AVA supports ECMAScript advanced features not only promise but also async/await.
+AVA has built-in support for [async functions](https://github.com/avajs/ava#async-function-support), which simplifies async operations:
 
 ```js
+import test from 'ava';
+import {Application} from 'spectron';
+
+test.beforeEach(async t => {
+  t.context.app = new Application({
+    path: '/Applications/MyApp.app/Contents/MacOS/MyApp'
+  });
+
+  await t.context.app.start();
+});
+
+test.afterEach.always(async t => {
+  await t.context.app.stop();
+});
+
 test(async t => {
-  await t.context.app.client.waitUntilWindowLoaded();
-  t.is(1, await app.client.getWindowCount());
-  t.false(await app.browserWindow.isMinimized());
-  t.false(await app.browserWindow.isDevToolsOpened());
-  t.true(await app.browserWindow.isVisible());
-  t.true(await app.browserWindow.isFocused());
-  t.ok((await app.browserWindow.getBounds()).width > 0);
-  t.ok((await app.browserWindow.getBounds()).height > 0);
+  const app = t.context.app;
+  await app.client.waitUntilWindowLoaded();
+
+  const win = app.browserWindow;
+  t.is(await app.client.getWindowCount(), 1);
+  t.false(await win.isMinimized());
+  t.false(await win.isDevToolsOpened());
+  t.true(await win.isVisible());
+  t.true(await win.isFocused());
+
+  const {width, height} = await win.getBounds();
+  t.true(width > 0);
+  t.true(height > 0);
 });
 ```
+
+[preload]: http://electron.atom.io/docs/api/browser-window/#new-browserwindowoptions
